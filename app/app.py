@@ -1,14 +1,13 @@
 import streamlit as st
 import json
 from pathlib import Path
-import sys, os
+import sys
 # add project root (one level up from this file) to sys.path so `utils` imports resolve
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 
-from PIL import Image
 from utils.matching import load_breeds, top_k_matches
 from utils.normalize import normalize_for_folder
 
