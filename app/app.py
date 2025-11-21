@@ -85,12 +85,44 @@ def get_first_image_for_breed(breed):
 # Simple UI: form for preferences (keep your previous form or replace with this)
 with st.form("pref_form"):
     st.header("Tell me about your lifestyle")
-    activity = st.slider("Activity level (1 = couch, 5 = very active)", 1, 5, 3)
-    home = st.selectbox("Home type", ['apartment','house'])
-    children = st.radio("Young children in home?", ['No','Yes']) == 'Yes'
-    allergies = st.radio("Any dog allergies in home?", ['No','Yes']) == 'Yes'
-    time_train = st.slider("Time/effort for training (1 = little, 5 = lots)",1,5,3)
-    size = st.selectbox("Preferred size (optional)", ['no preference','small','medium','large'])
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("Basic Information")
+        activity = st.slider("Activity level (1 = couch, 5 = very active)", 1, 5, 3)
+        home = st.selectbox("Home type", ['apartment','house'])
+        children = st.radio("Young children in home?", ['No','Yes']) == 'Yes'
+        allergies = st.radio("Any dog allergies in home?", ['No','Yes']) == 'Yes'
+        time_train = st.slider("Time/effort for training (1 = little, 5 = lots)",1,5,3)
+        size = st.selectbox("Preferred size (optional)", ['no preference','small','medium','large'])
+        other_dogs = st.radio("Do you have other dogs?", ['No','Yes']) == 'Yes'
+    
+    with col2:
+        st.subheader("Additional Preferences")
+        # Initialize defaults first
+        shedding_tolerance = 3
+        grooming_tolerance = 3
+        playfulness_pref = 3
+        affection_pref = 3
+        barking_tolerance = 3
+        openness_pref = 3
+        mental_stimulation = 3
+        
+        with st.expander("Grooming & Maintenance", expanded=False):
+            shedding_tolerance = st.slider("Shedding tolerance (1 = low, 5 = high)", 1, 5, 3, 
+                                          help="How much shedding can you tolerate?")
+            grooming_tolerance = st.slider("Grooming maintenance (1 = low, 5 = high)", 1, 5, 3,
+                                           help="How much grooming are you willing to do?")
+        
+        with st.expander("Temperament & Behavior", expanded=False):
+            playfulness_pref = st.slider("Playfulness preference (1 = calm, 5 = very playful)", 1, 5, 3)
+            affection_pref = st.slider("Affection level (1 = independent, 5 = very affectionate)", 1, 5, 3)
+            barking_tolerance = st.slider("Barking tolerance (1 = quiet preferred, 5 = ok with barking)", 1, 5, 3)
+            openness_pref = st.slider("Openness to strangers (1 = protective, 5 = friendly)", 1, 5, 3)
+            mental_stimulation = st.slider("Mental stimulation needs (1 = low, 5 = high)", 1, 5, 3,
+                                          help="How much mental exercise can you provide?")
+    
     submitted = st.form_submit_button("Find my matches")
 
 if submitted:
@@ -100,7 +132,15 @@ if submitted:
         'children': children,
         'allergies': allergies,
         'time_for_training': time_train,
-        'size_pref': None if size=='no preference' else size
+        'size_pref': None if size=='no preference' else size,
+        'shedding_tolerance': shedding_tolerance,
+        'grooming_tolerance': grooming_tolerance,
+        'barking_tolerance': barking_tolerance,
+        'playfulness_pref': playfulness_pref,
+        'affection_pref': affection_pref,
+        'other_dogs': other_dogs,
+        'openness_pref': openness_pref,
+        'mental_stimulation': mental_stimulation
     }
     results = top_k_matches(df, prefs, k=3)
     st.subheader("Top matches for you")
@@ -118,9 +158,15 @@ if submitted:
                 col.write("_Image unavailable for this breed._")
         else:
             col.write("_No image found — check mapping for this breed._")
-        # short bullets
+        # short bullets - show more characteristics
         reasons = []
-        reasons.append(f"Energy: {row['energy']} / 5")
-        reasons.append(f"Trainability: {row['trainability']} / 5")
-        reasons.append(f"Good with kids: {row.get('good_with_kids',3)} / 5")
+        reasons.append(f"Energy: {row['energy']}/5")
+        reasons.append(f"Trainability: {row['trainability']}/5")
+        reasons.append(f"Good with kids: {row.get('good_with_kids',3)}/5")
+        if 'shedding' in row:
+            reasons.append(f"Shedding: {row['shedding']}/5")
+        if 'barking' in row:
+            reasons.append(f"Barking: {row['barking']}/5")
+        if 'playfulness' in row:
+            reasons.append(f"Playfulness: {row['playfulness']}/5")
         col.write('\n'.join(f"- {r}" for r in reasons))

@@ -5,7 +5,12 @@ from utils.normalize import normalize_for_folder
 def load_breeds(path='data/breed_traits.csv'):
     df = pd.read_csv(path)
     # Ensure numeric columns exist as ints
-    for col in ['Energy Level','Trainability Level','Good With Young Children','Shedding Level','Coat Grooming Frequency','Good For Apartment','Playfulness Level','Barking Level','Affectionate With Family','Adaptability Level','Mental Stimulation Needs']:
+    numeric_cols = ['Energy Level','Trainability Level','Good With Young Children',
+                    'Shedding Level','Coat Grooming Frequency','Drooling Level',
+                    'Openness To Strangers','Playfulness Level','Barking Level',
+                    'Affectionate With Family','Adaptability Level','Mental Stimulation Needs',
+                    'Watchdog/Protective Nature','Good With Other Dogs']
+    for col in numeric_cols:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(3).astype(int)
     # normalize/alias names for the app
@@ -16,14 +21,18 @@ def load_breeds(path='data/breed_traits.csv'):
         'Good With Young Children':'good_with_kids',
         'Shedding Level':'shedding',
         'Coat Grooming Frequency':'grooming',
+        'Drooling Level':'drooling',
         'Good For Apartment':'good_for_apartment',
         'Barking Level':'barking',
         'Playfulness Level':'playfulness',
         'Affectionate With Family':'affection',
         'Adaptability Level':'adaptability',
-        'Mental Stimulation Needs':'mental_needs'
+        'Mental Stimulation Needs':'mental_needs',
+        'Openness To Strangers':'openness',
+        'Watchdog/Protective Nature':'watchdog',
+        'Good With Other Dogs':'good_with_dogs'
     })
-    # If hypoallergenic info isn't available, derive from low shedding + grooming high? (approx)
+    # If hypoallergenic info isn't available, derive from low shedding
     if 'hypoallergenic' not in df.columns:
         df['hypoallergenic'] = df['shedding'] <= 2
     return df
@@ -37,7 +46,14 @@ def score_breeds(df, prefs, weights=None):
       - allergies: True/False
       - time_for_training: 1..5
       - size_pref: 'small'/'medium'/'large'/None
-      - shedding_tolerance: 'low'/'med'/'high'/None
+      - shedding_tolerance: 1..5 (1=low tolerance, 5=high tolerance)
+      - grooming_tolerance: 1..5 (1=low maintenance, 5=high maintenance)
+      - barking_tolerance: 1..5 (1=quiet preferred, 5=ok with barking)
+      - playfulness_pref: 1..5 (1=calm, 5=very playful)
+      - affection_pref: 1..5 (1=independent, 5=very affectionate)
+      - other_dogs: True/False (have other dogs)
+      - openness_pref: 1..5 (1=protective, 5=friendly to strangers)
+      - mental_stimulation: 1..5 (1=low needs, 5=high needs)
     """
     if weights is None:
         weights = {
@@ -46,7 +62,15 @@ def score_breeds(df, prefs, weights=None):
             'children': 2.0,
             'allergies': 2.5,
             'training_time': 2.0,
-            'size': 1.0
+            'size': 1.0,
+            'shedding': 1.5,
+            'grooming': 1.5,
+            'barking': 1.5,
+            'playfulness': 1.5,
+            'affection': 1.5,
+            'other_dogs': 2.0,
+            'openness': 1.0,
+            'mental_stimulation': 1.0
         }
 
     scores = []
@@ -108,6 +132,86 @@ def score_breeds(df, prefs, weights=None):
             s_size = 1.0 if prefs['size_pref']==size else 0.5
             s += s_size * weights['size']
             wsum += weights['size']
+
+        # shedding tolerance
+        if prefs.get('shedding_tolerance') is not None:
+            user_tolerance = prefs['shedding_tolerance']  # 1=low tolerance, 5=high tolerance
+            breed_shedding = r.get('shedding', 3)
+            # If user has low tolerance (1-2), prefer low shedding (1-2)
+            # If user has high tolerance (4-5), any shedding is fine
+            if user_tolerance <= 2:
+                s_shed = max(0, 1 - abs(breed_shedding - 1) / 4.0)
+            else:
+                s_shed = 1.0 - (breed_shedding - 1) / 4.0 * 0.3  # slight preference for lower
+            s += s_shed * weights['shedding']
+            wsum += weights['shedding']
+
+        # grooming tolerance
+        if prefs.get('grooming_tolerance') is not None:
+            user_tolerance = prefs['grooming_tolerance']  # 1=low maintenance, 5=high maintenance
+            breed_grooming = r.get('grooming', 3)
+            diff = abs(user_tolerance - breed_grooming)
+            s_groom = max(0, 1 - diff / 4.0)
+            s += s_groom * weights['grooming']
+            wsum += weights['grooming']
+
+        # barking tolerance
+        if prefs.get('barking_tolerance') is not None:
+            user_tolerance = prefs['barking_tolerance']  # 1=quiet preferred, 5=ok with barking
+            breed_barking = r.get('barking', 3)
+            # If user wants quiet (1-2), prefer low barking (1-2)
+            # If user is ok with barking (4-5), any level is fine
+            if user_tolerance <= 2:
+                s_bark = max(0, 1 - abs(breed_barking - 1) / 4.0)
+            else:
+                s_bark = 1.0 - (breed_barking - 1) / 4.0 * 0.2
+            s += s_bark * weights['barking']
+            wsum += weights['barking']
+
+        # playfulness preference
+        if prefs.get('playfulness_pref') is not None:
+            user_pref = prefs['playfulness_pref']
+            breed_play = r.get('playfulness', 3)
+            diff = abs(user_pref - breed_play)
+            s_play = max(0, 1 - diff / 4.0)
+            s += s_play * weights['playfulness']
+            wsum += weights['playfulness']
+
+        # affection preference
+        if prefs.get('affection_pref') is not None:
+            user_pref = prefs['affection_pref']
+            breed_affection = r.get('affection', 3)
+            diff = abs(user_pref - breed_affection)
+            s_aff = max(0, 1 - diff / 4.0)
+            s += s_aff * weights['affection']
+            wsum += weights['affection']
+
+        # other dogs
+        if prefs.get('other_dogs') is not None:
+            if prefs['other_dogs']:
+                s_dogs = r.get('good_with_dogs', 3) / 5.0
+            else:
+                s_dogs = 1.0  # no preference if no other dogs
+            s += s_dogs * weights['other_dogs']
+            wsum += weights['other_dogs']
+
+        # openness to strangers
+        if prefs.get('openness_pref') is not None:
+            user_pref = prefs['openness_pref']  # 1=protective, 5=friendly
+            breed_openness = r.get('openness', 3)
+            diff = abs(user_pref - breed_openness)
+            s_open = max(0, 1 - diff / 4.0)
+            s += s_open * weights['openness']
+            wsum += weights['openness']
+
+        # mental stimulation needs
+        if prefs.get('mental_stimulation') is not None:
+            user_needs = prefs['mental_stimulation']
+            breed_needs = r.get('mental_needs', 3)
+            diff = abs(user_needs - breed_needs)
+            s_mental = max(0, 1 - diff / 4.0)
+            s += s_mental * weights['mental_stimulation']
+            wsum += weights['mental_stimulation']
 
         # final normalized score
         final = s/(wsum+1e-9)
