@@ -165,7 +165,9 @@ if submitted:
         st.subheader("📱 Share Your Match")
         with st.expander("📝 Generate Social Media Post", expanded=False):
             social_post = generate_social_post(top_match, prefs)
-            st.text_area("Copy this post:", social_post, height=200, key="social_post")
+            # Use a unique key based on breed name and score to avoid caching issues
+            unique_key = f"social_post_{top_match['breed']}_{top_match['score']:.2f}"
+            st.text_area("Copy this post:", social_post, height=200, key=unique_key)
             st.info("💡 Copy the text above and share it on your favorite social media platform!")
     
     cols = st.columns(3)
