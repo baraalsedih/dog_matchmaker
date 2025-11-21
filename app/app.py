@@ -11,6 +11,7 @@ if str(ROOT) not in sys.path:
 
 from utils.matching import load_breeds, top_k_matches
 from utils.normalize import normalize_for_folder
+from utils.social_post import generate_social_post
 
 # CONFIG: match this to where your images are stored
 # Use absolute paths based on ROOT to ensure they work on Streamlit Cloud
@@ -148,6 +149,17 @@ if submitted:
     }
     results = top_k_matches(df, prefs, k=3)
     st.subheader("Top matches for you")
+    
+    # Generate social media post for top match
+    if len(results) > 0:
+        top_match = results.iloc[0]
+        st.markdown("---")
+        st.subheader("📱 Share Your Match")
+        with st.expander("📝 Generate Social Media Post", expanded=False):
+            social_post = generate_social_post(top_match, prefs)
+            st.text_area("Copy this post:", social_post, height=200, key="social_post")
+            st.info("💡 Copy the text above and share it on your favorite social media platform!")
+    
     cols = st.columns(3)
     for i, (_, row) in enumerate(results.iterrows()):
         col = cols[i]
