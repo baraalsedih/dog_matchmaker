@@ -48,6 +48,7 @@ def score_breeds(df, prefs, weights=None):
       - size_pref: 'small'/'medium'/'large'/None
       - shedding_tolerance: 1..5 (1=low tolerance, 5=high tolerance)
       - grooming_tolerance: 1..5 (1=low maintenance, 5=high maintenance)
+      - drooling_tolerance: 1..5 (1=low tolerance, 5=high tolerance)
       - barking_tolerance: 1..5 (1=quiet preferred, 5=ok with barking)
       - playfulness_pref: 1..5 (1=calm, 5=very playful)
       - affection_pref: 1..5 (1=independent, 5=very affectionate)
@@ -65,6 +66,7 @@ def score_breeds(df, prefs, weights=None):
             'size': 1.0,
             'shedding': 1.5,
             'grooming': 1.5,
+            'drooling': 2.0,  # High CV feature - very useful for matching
             'barking': 1.5,
             'playfulness': 1.5,
             'affection': 1.5,
@@ -154,6 +156,19 @@ def score_breeds(df, prefs, weights=None):
             s_groom = max(0, 1 - diff / 4.0)
             s += s_groom * weights['grooming']
             wsum += weights['grooming']
+
+        # drooling tolerance (high CV feature - very useful for matching)
+        if prefs.get('drooling_tolerance') is not None:
+            user_tolerance = prefs['drooling_tolerance']  # 1=low tolerance, 5=high tolerance
+            breed_drooling = r.get('drooling', 3)
+            # If user has low tolerance (1-2), prefer low drooling (1-2)
+            # If user has high tolerance (4-5), any drooling is fine
+            if user_tolerance <= 2:
+                s_drool = max(0, 1 - abs(breed_drooling - 1) / 4.0)
+            else:
+                s_drool = 1.0 - (breed_drooling - 1) / 4.0 * 0.3  # slight preference for lower
+            s += s_drool * weights['drooling']
+            wsum += weights['drooling']
 
         # barking tolerance
         if prefs.get('barking_tolerance') is not None:
