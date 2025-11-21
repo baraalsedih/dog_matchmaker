@@ -103,6 +103,7 @@ with st.form("pref_form"):
         # Initialize defaults first
         shedding_tolerance = 3
         grooming_tolerance = 3
+        drooling_tolerance = 3
         playfulness_pref = 3
         affection_pref = 3
         barking_tolerance = 3
@@ -114,6 +115,8 @@ with st.form("pref_form"):
                                           help="How much shedding can you tolerate?")
             grooming_tolerance = st.slider("Grooming maintenance (1 = low, 5 = high)", 1, 5, 3,
                                            help="How much grooming are you willing to do?")
+            drooling_tolerance = st.slider("Drooling tolerance (1 = low, 5 = high)", 1, 5, 3,
+                                          help="How much drooling can you tolerate?")
         
         with st.expander("Temperament & Behavior", expanded=False):
             playfulness_pref = st.slider("Playfulness preference (1 = calm, 5 = very playful)", 1, 5, 3)
@@ -135,6 +138,7 @@ if submitted:
         'size_pref': None if size=='no preference' else size,
         'shedding_tolerance': shedding_tolerance,
         'grooming_tolerance': grooming_tolerance,
+        'drooling_tolerance': drooling_tolerance,
         'barking_tolerance': barking_tolerance,
         'playfulness_pref': playfulness_pref,
         'affection_pref': affection_pref,
