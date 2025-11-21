@@ -12,8 +12,9 @@ from utils.matching import load_breeds, top_k_matches
 from utils.normalize import normalize_for_folder
 
 # CONFIG: match this to where your images are stored
-IMAGES_DIR = Path("data/images")
-MAPPING_FILE = Path("data/breed_to_folder.json")
+# Use absolute paths based on ROOT to ensure they work on Streamlit Cloud
+IMAGES_DIR = ROOT / "data" / "images"
+MAPPING_FILE = ROOT / "data" / "breed_to_folder.json"
 
 st.set_page_config(page_title="Dog Matchmaker", layout="wide")
 st.title("🐕 Dog Matchmaker — find your perfect pup")
@@ -25,7 +26,7 @@ else:
     mapping = {}
 
 # load breeds dataframe
-df = load_breeds('data/breed_traits.csv')
+df = load_breeds(str(ROOT / 'data' / 'breed_traits.csv'))
 
 def get_first_image_for_breed(breed):
     """
@@ -44,10 +45,20 @@ def get_first_image_for_breed(breed):
         if not folder_path.exists():
             return None
 
-    for ext in ('*.jpg','*.jpeg','*.png'):
+    # Check for images with case-insensitive matching (Linux is case-sensitive)
+    # Try all case variations of common image extensions
+    extensions = ['*.jpg', '*.jpeg', '*.png', '*.JPG', '*.JPEG', '*.PNG', 
+                  '*.Jpg', '*.Jpeg', '*.Png', '*.JpG', '*.JpEg', '*.PnG']
+    for ext in extensions:
         files = sorted(folder_path.glob(ext))
         if files:
             return files[0]
+    # Fallback: try to find any image file if exact patterns don't match
+    all_files = list(folder_path.iterdir())
+    image_files = [f for f in all_files if f.is_file() and 
+                   f.suffix.lower() in ['.jpg', '.jpeg', '.png']]
+    if image_files:
+        return sorted(image_files)[0]
     return None
 
 # Simple UI: form for preferences (keep your previous form or replace with this)
@@ -77,8 +88,9 @@ if submitted:
         col = cols[i]
         col.markdown(f"### {row['breed']}  — score {row['score']:.2f}")
         img_path = get_first_image_for_breed(row['breed'])
-        if img_path:
-            col.image(str(img_path), use_column_width=True)
+        if img_path and img_path.exists():
+            # Use absolute path string for Streamlit
+            col.image(str(img_path.resolve()), use_column_width=True)
         else:
             col.write("_No image found — check mapping for this breed._")
         # short bullets
