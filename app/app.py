@@ -11,7 +11,15 @@ if str(ROOT) not in sys.path:
 
 from utils.matching import load_breeds, top_k_matches
 from utils.normalize import normalize_for_folder
-from utils.social_post import generate_social_post
+
+# Import social post generator with fallback
+try:
+    from utils.social_post import generate_social_post
+    SOCIAL_POST_AVAILABLE = True
+except ImportError:
+    SOCIAL_POST_AVAILABLE = False
+    def generate_social_post(row, prefs=None):
+        return "Social media post feature is not available."
 
 # CONFIG: match this to where your images are stored
 # Use absolute paths based on ROOT to ensure they work on Streamlit Cloud
@@ -151,7 +159,7 @@ if submitted:
     st.subheader("Top matches for you")
     
     # Generate social media post for top match
-    if len(results) > 0:
+    if len(results) > 0 and SOCIAL_POST_AVAILABLE:
         top_match = results.iloc[0]
         st.markdown("---")
         st.subheader("📱 Share Your Match")
