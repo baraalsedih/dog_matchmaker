@@ -2,6 +2,7 @@ import streamlit as st
 import json
 from pathlib import Path
 import sys
+from PIL import Image
 # add project root (one level up from this file) to sys.path so `utils` imports resolve
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -28,6 +29,24 @@ else:
 # load breeds dataframe
 df = load_breeds(str(ROOT / 'data' / 'breed_traits.csv'))
 
+def is_valid_image(img_path):
+    """
+    Check if a file is a valid image that can be opened by PIL.
+    Returns True if valid, False otherwise.
+    """
+    if not img_path or not img_path.exists():
+        return False
+    try:
+        # Try to open and verify the image
+        with Image.open(img_path) as img:
+            img.verify()  # Verify it's a valid image (this closes the file)
+        # Reopen for actual use (verify() closes the file)
+        with Image.open(img_path) as img:
+            img.load()  # Load the image data to ensure it's readable
+        return True
+    except Exception:
+        return False
+
 def get_first_image_for_breed(breed):
     """
     Returns Path object of the first image for the given breed or None.
@@ -51,14 +70,16 @@ def get_first_image_for_breed(breed):
                   '*.Jpg', '*.Jpeg', '*.Png', '*.JpG', '*.JpEg', '*.PnG']
     for ext in extensions:
         files = sorted(folder_path.glob(ext))
-        if files:
-            return files[0]
+        for file in files:
+            if is_valid_image(file):
+                return file
     # Fallback: try to find any image file if exact patterns don't match
     all_files = list(folder_path.iterdir())
     image_files = [f for f in all_files if f.is_file() and 
                    f.suffix.lower() in ['.jpg', '.jpeg', '.png']]
-    if image_files:
-        return sorted(image_files)[0]
+    for file in sorted(image_files):
+        if is_valid_image(file):
+            return file
     return None
 
 # Simple UI: form for preferences (keep your previous form or replace with this)
@@ -89,8 +110,12 @@ if submitted:
         col.markdown(f"### {row['breed']}  — score {row['score']:.2f}")
         img_path = get_first_image_for_breed(row['breed'])
         if img_path and img_path.exists():
-            # Use absolute path string for Streamlit
-            col.image(str(img_path.resolve()), use_column_width=True)
+            try:
+                # Use absolute path string for Streamlit
+                col.image(str(img_path.resolve()), use_column_width=True)
+            except Exception as e:
+                # If image fails to load, show placeholder instead of crashing
+                col.write("_Image unavailable for this breed._")
         else:
             col.write("_No image found — check mapping for this breed._")
         # short bullets
